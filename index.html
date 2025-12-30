@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Required</title>
+    <!-- 1. Add resource hints to improve loading performance -->
+    <link rel="preconnect" href="https://challenges.cloudflare.com">
+    <!-- 2. Load the official Turnstile API script -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f9f9f9; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; }
+        .status-message { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Verifying your connection</h2>
+    <p>Please click the box below to proceed automatically.</p>
+
+    <!-- 3. The Turnstile widget container -->
+    <div class="cf-turnstile" 
+         data-sitekey="0x4AAAAAACJw0GMsHz2maRHr" 
+         data-callback="handleTokenResponse"></div>
+
+    <div id="status-message" class="status-message"></div>
+</div>
+
+<script>
+    /**
+     * This function runs when the user successfully solves the challenge.
+     * It sends the token to the backend script for server-side validation.
+     */
+    function handleTokenResponse(token) {
+        const statusElement = document.getElementById('status-message');
+        statusElement.innerText = "Verifying securely, please wait...";
+        statusElement.style.color = "#3498db";
+
+        // Send the token to the backend PHP script using fetch
+        fetch('/verify-turnstile.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            // The required POST parameter name for the token is 'response'
+            body: `response=${encodeURIComponent(token)}`,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Server confirmed the token is valid. Redirect the user.
+                statusElement.innerText = "Verified! Redirecting...";
+                statusElement.style.color = "#2ecc71";
+                setTimeout(() => {
+                    window.location.replace("https://your-destination-url.com"); 
+                }, 800); 
+            } else {
+                // Server said the token was invalid (e.g., bot detected)
+                statusElement.innerText = "Verification failed! Please try again.";
+                statusElement.style.color = "#e74c3c";
+                console.error("Error codes:", data['error-codes']);
+                // Reset the widget to allow a new attempt
+                turnstile.reset();
+            }
+        })
+        .catch(error => {
+            console.error('Network error during verification:', error);
+            statusElement.innerText = "A network error occurred.";
+            statusElement.style.color = "#e74c3c";
+        });
+    }
+</script>
+
+</body>
+</html>
